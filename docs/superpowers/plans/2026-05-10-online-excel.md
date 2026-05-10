@@ -328,7 +328,7 @@ npm install \
 - [ ] **Step 2: 安装 Luckyexcel + axios + element-plus + idb**
 
 ```bash
-npm install luckyexcel axios element-plus @element-plus/icons-vue idb
+npm install @zwight/luckyexcel axios element-plus @element-plus/icons-vue idb
 ```
 
 - [ ] **Step 3: 安装测试与 mock 工具**
@@ -348,7 +348,7 @@ Expected: 生成 `frontend/public/mockServiceWorker.js`，并在 `package.json` 
 - [ ] **Step 5: 验证安装**
 
 ```bash
-ls node_modules/@univerjs/core node_modules/luckyexcel node_modules/element-plus node_modules/msw
+ls node_modules/@univerjs/core node_modules/@zwight/luckyexcel node_modules/element-plus node_modules/msw
 ls public/mockServiceWorker.js
 ```
 
@@ -609,7 +609,7 @@ import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui'
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt'
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui'
 import { FUniver } from '@univerjs/core/facade'
-import LuckyExcel from 'luckyexcel'
+import LuckyExcel from '@zwight/luckyexcel'
 
 import '@univerjs/design/lib/index.css'
 import '@univerjs/ui/lib/index.css'
@@ -950,7 +950,7 @@ export const xlsxConverter: XlsxConverter = createLuckyexcelConverter()
 `frontend/src/utils/xlsxConverter.luckyexcel.ts`:
 ```ts
 import type { IWorkbookData } from '@univerjs/core'
-import LuckyExcel from 'luckyexcel'
+import LuckyExcel from '@zwight/luckyexcel'
 import type { XlsxConverter } from './xlsxConverter'
 
 export function createLuckyexcelConverter(): XlsxConverter {
@@ -1048,7 +1048,7 @@ Expected: 测试运行；如果 Luckyexcel API 与代码假设不符或 jsdom �
 > **如果失败**：可能需要调整：
 > 1. `getBuffer: true` 选项不存在 → 改用文件名约定 + 拦截下载
 > 2. jsdom 缺 `URL.createObjectURL` → 在 setup.ts 加 polyfill
-> 3. 调用约定与文档不符 → 看 luckyexcel npm readme 调整
+> 3. 调用约定与文档不符 → 看 @zwight/luckyexcel npm readme 调整
 
 修复后重新跑，直到 PASS。
 

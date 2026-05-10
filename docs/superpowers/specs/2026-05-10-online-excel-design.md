@@ -221,7 +221,7 @@ state: {
 | `@univerjs/ui-adapter-vue3` | npm | 同上 |
 | `@univerjs/design/lib/index.css` | npm 路径 import | 不要换成 CDN |
 | Univer Formula Worker | Vite `new URL('./worker.ts', import.meta.url)` | Vite 自动 bundle 成本地；**禁止 `workerURL: 'https://...'`** |
-| Luckyexcel | `npm i luckyexcel` | 纯 JS 包 |
+| Luckyexcel | `npm i @zwight/luckyexcel` | 纯 JS 包（Univer 兼容 fork） |
 | Vue 3 / Vite / TypeScript | npm | 默认本地 |
 | element-plus + 图标 | npm + `import 'element-plus/dist/index.css'` | 不要用 unpkg CDN 示例 |
 | MSW | npm + `npx msw init public/` | service worker 文件本地 |
