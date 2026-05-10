@@ -13,6 +13,10 @@
 **Critical gates:**
 - 阶段 1 完成后必须通过 PoC 验收（spec §9）。不通过则停下来，按 R1 fallback 决策（替换 xlsxConverter 实现）后再继续阶段 2。
 
+**Known API quirks (verified during Task 1.3 implementation):**
+- `disposeUnit(unitId)` is on `FUniver` (the Facade returned by `FUniver.newAPI(univer)`), NOT on the `Univer` class itself. Use `univerAPI.disposeUnit(...)` everywhere.
+- `LuckyExcel.transformUniverToExcel(params)` takes a single params object with `success` / `error` callbacks INSIDE the params, not positional. `transformExcelToUniver(file, success, error)` is positional (asymmetric API).
+
 ---
 
 ## 文件清单（plan 全部新建）
@@ -968,19 +972,21 @@ export function createLuckyexcelConverter(): XlsxConverter {
 
     async toXlsx(snapshot: IWorkbookData, fileName: string): Promise<Blob> {
       return new Promise<Blob>((resolve, reject) => {
-        LuckyExcel.transformUniverToExcel(
-          {
-            snapshot,
-            fileName,
-            getBuffer: true,                  // 让回调收到 ArrayBuffer 而非触发下载
-          } as any,
-          (buffer: ArrayBuffer) => {
+        LuckyExcel.transformUniverToExcel({
+          snapshot,
+          fileName,
+          getBuffer: true,                    // 让回调收到 ArrayBuffer 而非触发下载
+          success: (buffer?: ArrayBuffer) => {
+            if (!buffer) {
+              reject(new Error('LuckyExcel returned empty buffer'))
+              return
+            }
             resolve(new Blob([buffer], {
               type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             }))
           },
-          (err: Error) => reject(err),
-        )
+          error: (err: Error) => reject(err),
+        })
       })
     },
   }
@@ -2494,7 +2500,7 @@ export async function guardDirty(): Promise<GuardResult> {
       const workbookData = await xlsxConverter.toUniver(blob, fileName)
 
       if (this.currentFileId) {
-        this.univerInstance.disposeUnit(this.currentFileId)
+        this.univerAPI?.disposeUnit(this.currentFileId)
       }
       this.setIgnoreInitial(true)
 
@@ -3133,7 +3139,7 @@ git commit -m "feat(scenarios): scenario 6 - create new empty xlsx file"
     async removeNode(id: string) {
       await fileApi.deleteFile(id)
       if (this.currentFileId === id) {
-        if (this.univerInstance) this.univerInstance.disposeUnit(id)
+        this.univerAPI?.disposeUnit(id)
         this.currentFileId = null
         this.currentFileName = null
         this.dirty = false
