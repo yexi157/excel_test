@@ -660,7 +660,7 @@ async function loadFixture() {
     LuckyExcel.transformExcelToUniver(
       file,
       (workbookData: any /* IWorkbookData */, _luckysheetfile: unknown) => {
-        univer?.disposeUnit(currentUnitId)
+        univerAPI?.disposeUnit(currentUnitId)
         currentUnitId = workbookData.id || 'fixture-workbook'
         univer?.createUnit(UniverInstanceType.UNIVER_SHEET, {
           ...workbookData,
@@ -676,11 +676,12 @@ async function loadFixture() {
 async function downloadCurrent() {
   const snapshot = univerAPI!.getActiveWorkbook()!.save()
   await new Promise<void>((resolve, reject) => {
-    LuckyExcel.transformUniverToExcel(
-      { snapshot, fileName: 'poc-export.xlsx' },
-      () => resolve(),
-      (err: Error) => reject(err),
-    )
+    LuckyExcel.transformUniverToExcel({
+      snapshot,
+      fileName: 'poc-export.xlsx',
+      success: () => resolve(),
+      error: (err: Error) => reject(err),
+    })
   })
 }
 
@@ -786,7 +787,7 @@ async function loadFixture(name: string) {
     LuckyExcel.transformExcelToUniver(
       file,
       (workbookData: any) => {
-        univer?.disposeUnit(currentUnitId)
+        univerAPI?.disposeUnit(currentUnitId)
         currentUnitId = workbookData.id || 'fixture-workbook'
         univer?.createUnit(UniverInstanceType.UNIVER_SHEET, {
           ...workbookData,
@@ -2566,10 +2567,11 @@ import { UniverInstanceType } from '@univerjs/core'
       { id: 'f1', name: 'a.xlsx', type: 'file', parentId: null },
     ]
     const fakeUniver = {
-      disposeUnit: vi.fn(),
       createUnit: vi.fn(),
     } as any
-    const fakeAPI = {} as any
+    const fakeAPI = {
+      disposeUnit: vi.fn(),
+    } as any
     store.bindUniver(fakeUniver, fakeAPI)
 
     // mock fileApi.getFile + xlsxConverter.toUniver
