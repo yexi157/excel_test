@@ -53,10 +53,11 @@ function createUniver() {
   return u
 }
 
-async function loadFixture() {
-  const response = await fetch('/fixtures/simple-100x10.xlsx')
+async function loadFixture(name: string) {
+  const response = await fetch(`/fixtures/${name}`)
+  if (!response.ok) throw new Error(`Failed to fetch ${name}: ${response.status}`)
   const blob = await response.blob()
-  const file = new File([blob], 'simple-100x10.xlsx')
+  const file = new File([blob], name)
   await new Promise<void>((resolve, reject) => {
     LuckyExcel.transformExcelToUniver(
       file,
@@ -105,8 +106,10 @@ onUnmounted(() => {
 
 <template>
   <div class="poc-toolbar">
-    <button @click="loadFixture">加载 fixture</button>
-    <button @click="downloadCurrent">下载为 xlsx</button>
+    <button @click="loadFixture('simple-100x10.xlsx')">加载 simple</button>
+    <button @click="loadFixture('merged-cells.xlsx')">加载 merged</button>
+    <button @click="loadFixture('formulas-sum-vlookup.xlsx')">加载 formulas</button>
+    <button @click="downloadCurrent">下载</button>
   </div>
   <div ref="container" class="univer-host" />
 </template>

@@ -93,7 +93,106 @@ async function generateSimple(ExcelJS) {
   console.log(`Wrote ${out}`)
 }
 
-const generators = [generateSimple]
+async function generateMerged(ExcelJS) {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'fixture-generator'
+  wb.created = new Date()
+  const ws = wb.addWorksheet('Sheet1')
+
+  // 5x5 grid with various merge patterns
+  ws.getCell('A1').value = '标题区'
+  ws.mergeCells('A1:E1')
+  ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getCell('A1').font = { bold: true, size: 14 }
+
+  // Vertical merge
+  ws.getCell('A2').value = '类别'
+  ws.mergeCells('A2:A5')
+  ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' }
+
+  // Block merge
+  ws.getCell('B2').value = '总计'
+  ws.mergeCells('B2:C3')
+  ws.getCell('B2').alignment = { horizontal: 'center', vertical: 'middle' }
+
+  // Filling out the rest
+  for (let r = 4; r <= 10; r++) {
+    for (let c = 1; c <= 5; c++) {
+      const cell = ws.getRow(r).getCell(c)
+      if (!cell.value) cell.value = `R${r}C${c}`
+    }
+  }
+
+  // Borders on all merged regions
+  const thin = { style: 'thin', color: { argb: 'FF000000' } }
+  for (let r = 1; r <= 10; r++) {
+    for (let c = 1; c <= 5; c++) {
+      ws.getRow(r).getCell(c).border = { top: thin, left: thin, bottom: thin, right: thin }
+    }
+  }
+
+  for (let c = 1; c <= 5; c++) ws.getColumn(c).width = 12
+
+  const out = path.join(FIXTURES_DIR, 'merged-cells.xlsx')
+  await wb.xlsx.writeFile(out)
+  console.log(`Wrote ${out}`)
+}
+
+async function generateFormulas(ExcelJS) {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'fixture-generator'
+  wb.created = new Date()
+
+  // Sheet 1: data table
+  const data = wb.addWorksheet('Data')
+  data.getRow(1).values = ['ID', 'Name', 'Price', 'Qty', 'Total']
+  data.getRow(1).font = { bold: true }
+  const products = [
+    [1, 'Apple', 1.5, 100],
+    [2, 'Banana', 0.5, 200],
+    [3, 'Cherry', 3.0, 50],
+    [4, 'Date', 5.0, 30],
+    [5, 'Elderberry', 4.5, 40],
+  ]
+  for (let i = 0; i < products.length; i++) {
+    const r = i + 2
+    const [id, name, price, qty] = products[i]
+    data.getCell(`A${r}`).value = id
+    data.getCell(`B${r}`).value = name
+    data.getCell(`C${r}`).value = price
+    data.getCell(`D${r}`).value = qty
+    // Formula: Total = Price * Qty
+    data.getCell(`E${r}`).value = { formula: `C${r}*D${r}` }
+  }
+
+  // Summary row with SUM
+  data.getCell('A8').value = 'Sum'
+  data.getCell('A8').font = { bold: true }
+  data.getCell('E8').value = { formula: 'SUM(E2:E6)' }
+  data.getCell('E8').font = { bold: true }
+
+  // Sheet 2: VLOOKUP demo
+  const lookup = wb.addWorksheet('Lookup')
+  lookup.getRow(1).values = ['Lookup ID', 'Found Name', 'Found Total']
+  lookup.getRow(1).font = { bold: true }
+  for (let i = 0; i < 3; i++) {
+    const r = i + 2
+    const lookupId = (i % 5) + 1
+    lookup.getCell(`A${r}`).value = lookupId
+    lookup.getCell(`B${r}`).value = { formula: `VLOOKUP(A${r},Data!A:E,2,FALSE)` }
+    lookup.getCell(`C${r}`).value = { formula: `VLOOKUP(A${r},Data!A:E,5,FALSE)` }
+  }
+
+  for (const ws of [data, lookup]) {
+    for (let c = 1; c <= 5; c++) ws.getColumn(c).width = 14
+  }
+
+  const out = path.join(FIXTURES_DIR, 'formulas-sum-vlookup.xlsx')
+  await wb.xlsx.writeFile(out)
+  console.log(`Wrote ${out}`)
+}
+
+const generators = [generateSimple, generateMerged, generateFormulas]
 const ExcelJS = await loadExcelJs()
 fs.mkdirSync(FIXTURES_DIR, { recursive: true })
 for (const gen of generators) {
