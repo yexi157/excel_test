@@ -13,6 +13,7 @@ import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui'
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt'
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui'
 import { FUniver } from '@univerjs/core/facade'
+import LuckyExcel from '@zwight/luckyexcel'
 
 import '@univerjs/design/lib/index.css'
 import '@univerjs/ui/lib/index.css'
@@ -28,14 +29,16 @@ import '@univerjs/engine-formula/facade'
 
 const container = ref<HTMLDivElement>()
 let univer: Univer | null = null
+let univerAPI: ReturnType<typeof FUniver.newAPI> | null = null
+let currentUnitId = 'poc-workbook'
 
-onMounted(() => {
-  univer = new Univer({
+function createUniver() {
+  const u = new Univer({
     theme: defaultTheme,
     locale: LocaleType.ZH_CN,
     logLevel: LogLevel.WARN,
   })
-  univer.registerPlugins([
+  u.registerPlugins([
     [UniverRenderEnginePlugin],
     [UniverFormulaEnginePlugin],
     [UniverUIPlugin, { container: container.value! }],
@@ -47,13 +50,52 @@ onMounted(() => {
     [UniverSheetsNumfmtPlugin],
     [UniverSheetsNumfmtUIPlugin],
   ])
+  return u
+}
+
+async function loadFixture() {
+  const response = await fetch('/fixtures/simple-100x10.xlsx')
+  const blob = await response.blob()
+  const file = new File([blob], 'simple-100x10.xlsx')
+  await new Promise<void>((resolve, reject) => {
+    LuckyExcel.transformExcelToUniver(
+      file,
+      (workbookData /* IWorkbookData */) => {
+        univerAPI?.disposeUnit(currentUnitId)
+        currentUnitId = (workbookData as { id?: string }).id || 'fixture-workbook'
+        univer?.createUnit(UniverInstanceType.UNIVER_SHEET, {
+          ...workbookData,
+          id: currentUnitId,
+        })
+        resolve()
+      },
+      (err: Error) => reject(err),
+    )
+  })
+}
+
+async function downloadCurrent() {
+  const snapshot = univerAPI!.getActiveWorkbook()!.save()
+  await new Promise<void>((resolve, reject) => {
+    LuckyExcel.transformUniverToExcel({
+      snapshot,
+      fileName: 'poc-export.xlsx',
+      success: () => resolve(),
+      error: (err: Error) => reject(err),
+    })
+  })
+}
+
+onMounted(() => {
+  univer = createUniver()
   univer.createUnit(UniverInstanceType.UNIVER_SHEET, {
-    id: 'poc-workbook',
+    id: currentUnitId,
     name: 'PoC',
     sheetOrder: ['s1'],
     sheets: { s1: { id: 's1', name: 'Sheet1', rowCount: 100, columnCount: 26 } },
   })
-  ;(window as any).univerAPI = FUniver.newAPI(univer)
+  univerAPI = FUniver.newAPI(univer)
+  ;(window as any).univerAPI = univerAPI
 })
 
 onUnmounted(() => {
@@ -62,12 +104,24 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div class="poc-toolbar">
+    <button @click="loadFixture">加载 fixture</button>
+    <button @click="downloadCurrent">下载为 xlsx</button>
+  </div>
   <div ref="container" class="univer-host" />
 </template>
 
 <style scoped>
+.poc-toolbar {
+  height: 40px;
+  display: flex;
+  gap: 8px;
+  padding: 4px 12px;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+}
 .univer-host {
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 40px);
 }
 </style>
