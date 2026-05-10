@@ -3,15 +3,21 @@
 // Adds NO production deps — exceljs is invoked transiently via npx.
 //
 // Notes:
-// - ExcelJS 4.x is CommonJS-only without an ESM `exports` field, so Node's
-//   strict ESM resolver cannot find a bare `import 'exceljs'` from this .mjs
-//   file. We import via the package's main file `exceljs/excel.js`, which
-//   round-trips through CJS interop and works on Node 20+.
-// - When invoked through `npx --package=exceljs@^4 --`, npm puts the package
-//   under `~/.npm/_npx/<hash>/node_modules/` and only adds the `.bin` dir to
-//   PATH — Node's import resolver does NOT see it. We bootstrap by reading the
-//   first PATH entry (npx prepends its own `.bin`) and hand-resolving exceljs's
-//   main file via a `file://` URL. This keeps the npx invocation simple.
+// - We support two resolution paths:
+//   1. Local install (`npm install -D exceljs`) — `import 'exceljs/excel.js'`
+//      resolves via Node's package resolver. (Bare `import 'exceljs'` would
+//      also work; we use the explicit subpath so the fallback below stays
+//      consistent with what we file://-import.)
+//   2. Transient via `npx --package=exceljs@^4 --` — npm puts exceljs under
+//      `~/.npm/_npx/<hash>/node_modules/` and only adds its `.bin/` to PATH.
+//      Node's import resolver does NOT walk PATH, so the bare import fails.
+//      We bootstrap by scanning PATH for `<x>/node_modules/.bin` entries and
+//      hand-resolving `<x>/node_modules/exceljs/excel.js` via a `file://` URL.
+//
+// Generators are deterministic for cell content (see Math.sin pseudo-random
+// in generateSimple), but ExcelJS stamps `wb.created` into core.xml, so the
+// archive bytes drift between runs. Treat the .xlsx as a regenerable artifact,
+// not a stable hash target.
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -38,7 +44,9 @@ async function loadExcelJs() {
   try {
     const m = await import('exceljs/excel.js')
     return m.default ?? m
-  } catch {}
+  } catch (e) {
+    if (e?.code !== 'ERR_MODULE_NOT_FOUND' && e?.code !== 'MODULE_NOT_FOUND') throw e
+  }
   const npxPath = locateExcelJsFromNpx()
   if (!npxPath) {
     throw new Error(
@@ -85,6 +93,10 @@ async function generateSimple(ExcelJS) {
   console.log(`Wrote ${out}`)
 }
 
+const generators = [generateSimple]
 const ExcelJS = await loadExcelJs()
-await generateSimple(ExcelJS)
+fs.mkdirSync(FIXTURES_DIR, { recursive: true })
+for (const gen of generators) {
+  await gen(ExcelJS)
+}
 console.log('All fixtures generated.')
