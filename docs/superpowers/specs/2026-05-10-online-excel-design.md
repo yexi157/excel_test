@@ -234,9 +234,16 @@ state: {
 npm ci --prefer-offline
 npm run build
 npm run preview         # 断网状态下应能正常打开
-grep -rE 'https?://(?!localhost)' frontend/dist/ | grep -v '\.map'
-# 期望：无输出
+# BSD/macOS 兼容版（不用 PCRE 负向预查）：列出所有 http(s) URL，肉眼扫一遍
+grep -rEoh 'https?://[^"'\'' )<>]+' frontend/dist/ \
+  --include='*.js' --include='*.css' --include='*.html' \
+  | grep -v 'localhost' \
+  | grep -v 'sourceMappingURL' \
+  | sort -u
+# 期望：仅 XML 命名空间 / 文档链接 / 占位示例 等元数据，无运行时 CDN/外部资源引用
 ```
+
+> NOTE: 旧版 `grep -rE 'https?://(?!localhost)' ...` 用了 PCRE 负向预查 `(?!...)`，BSD/macOS `grep -E` 不支持，命令静默非 0 退出，被 `|| echo '✅ ...'` 吞掉，造成假阴性"clean"。上面是可移植替代。
 
 ### 5.6 后端契约纯粹性铁律
 
@@ -443,7 +450,12 @@ describe('xlsxConverter round-trip', () => {
 - [ ] 关闭标签页未保存浏览器原生提示
 - [ ] 至少 3 个真实业务 .xlsx 上传 → 编辑 → 下载 → Excel 桌面打开**视觉一致**
 - [ ] 离线启动：`npm run build && npm run preview` 后断网刷新仍可工作
-- [ ] `grep -rE 'https?://(?!localhost)' frontend/dist/ | grep -v '\.map'` 无输出
+- [ ] dist 外链审计（BSD/macOS 兼容；输出仅含元数据，无运行时 CDN）：
+  ```bash
+  grep -rEoh 'https?://[^"'\'' )<>]+' frontend/dist/ \
+    --include='*.js' --include='*.css' --include='*.html' \
+    | grep -v 'localhost' | grep -v 'sourceMappingURL' | sort -u
+  ```
 
 ### 8.4 风险登记
 

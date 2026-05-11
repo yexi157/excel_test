@@ -3395,15 +3395,22 @@ npm run build
 
 Expected: 构建成功，`dist/` 目录生成。
 
-- [ ] **Step 2: dist 无外链 grep**
+- [ ] **Step 2: dist 无外链 grep**（BSD/macOS 兼容版）
 
 ```bash
-grep -rE 'https?://(?!localhost)' dist/ | grep -v '\.map' | grep -v 'sourceMappingURL' || echo '✅ no external URLs'
+# 列出所有 http(s) URL（去掉 sourcemap / localhost），目视核对
+grep -rEoh 'https?://[^"'\'' )<>]+' dist/ \
+  --include='*.js' --include='*.css' --include='*.html' \
+  | grep -v 'localhost' \
+  | grep -v 'sourceMappingURL' \
+  | sort -u
 ```
 
-Expected: 输出 `✅ no external URLs` 或类似。
+Expected: 输出仅包含 XML 命名空间（如 `http://schemas.openxmlformats.org/...`）、文档/规范链接（如 `https://www.w3.org/...`）、注释中的示例占位符等元数据字符串。**无任何运行时 CDN 资源引用**（如 unpkg、jsdelivr、cdnjs 等）。
 
-> 如果有外链：检查是哪个依赖引入。可能的源头：element-plus 的图标 svg url、Univer 的某个 worker 的远程 fallback。修复后重 build。
+> NOTE: 旧版 `grep -rE 'https?://(?!localhost)' ...` 使用 PCRE 负向预查 `(?!...)`，BSD/macOS `grep -E` 不支持，命令静默非 0 退出会被 `|| echo '✅ no external URLs'` 吞掉，造成假阴性"clean"。已替换为可移植版本。
+
+> 如果有运行时外链：检查是哪个依赖引入。可能的源头：element-plus 的图标 svg url、Univer 的某个 worker 的远程 fallback。修复后重 build。
 
 - [ ] **Step 3: 离线 preview 验证**
 
