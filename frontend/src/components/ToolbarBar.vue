@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useFileStore } from '@/stores/fileStore'
 
 const store = useFileStore()
@@ -19,8 +20,15 @@ const stateColor = computed(() => {
   return '#909399'
 })
 
-// 占位 handlers，task 5.3 onSave / task 5.4 onUpload / task 5.5 onDownload
-function onSave() { /* task 5.3 */ }
+// 占位 handlers，task 5.4 onUpload / task 5.5 onDownload
+async function onSave() {
+  try {
+    await store.save()
+    ElMessage.success('保存成功')
+  } catch (e: any) {
+    ElMessage.error(`保存失败：${e.message ?? e}`)
+  }
+}
 function onUpload() { /* task 5.4 */ }
 function onDownload() { /* task 5.5 */ }
 </script>

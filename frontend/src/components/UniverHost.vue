@@ -45,6 +45,15 @@ const container = ref<HTMLDivElement>()
 let univer: Univer | null = null
 let mutationDisposable: { dispose: () => void } | null = null
 
+function onKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    if (store.currentFileId) {
+      store.save().catch(err => console.error('[Ctrl+S save] failed:', err))
+    }
+  }
+}
+
 onMounted(() => {
   univer = new Univer({
     theme: defaultTheme,
@@ -89,11 +98,14 @@ onMounted(() => {
       store.markDirty()
     }
   })
+
+  window.addEventListener('keydown', onKeydown)
 })
 
 onUnmounted(() => {
   mutationDisposable?.dispose()
   univer?.dispose()
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
