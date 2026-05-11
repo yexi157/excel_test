@@ -98,6 +98,11 @@ function buildUniver(workbookData?: IWorkbookData) {
 
   const api = FUniver.newAPI(u)
 
+  // dev only: expose for browser-console debugging
+  if (import.meta.env.DEV) {
+    ;(window as any).univerAPI = api
+  }
+
   const dirtyListener = api.addEvent(api.Event.SheetValueChanged, () => {
     store.markDirty()
   })
@@ -111,7 +116,7 @@ function buildUniver(workbookData?: IWorkbookData) {
     api.Event.LifeCycleChanged,
     ({ stage }: { stage: number }) => {
       if (stage === api.Enum.LifecycleStages.Steady && !headerHighlight) {
-        headerHighlight = registerHeaderHighlight(api)
+        headerHighlight = registerHeaderHighlight(u)
       }
     },
   )
