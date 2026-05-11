@@ -75,7 +75,14 @@ function workbookEquivalent(a: IWorkbookData, b: IWorkbookData): boolean {
 }
 
 describe('xlsxConverter round-trip', () => {
-  const fixtures = ['simple-100x10.xlsx', 'merged-cells.xlsx', 'formulas-sum-vlookup.xlsx']
+  const fixtures = [
+    'simple-100x10.xlsx',
+    'merged-cells.xlsx',
+    'formulas-sum-vlookup.xlsx',
+    'conditional-format.xlsx',
+    'multi-sheet.xlsx',
+    'large-10k-rows.xlsx',
+  ]
 
   it.each(fixtures)('%s: blob → IWorkbookData → blob 后内容等价', async (name) => {
     const original = loadFixtureBlob(name)

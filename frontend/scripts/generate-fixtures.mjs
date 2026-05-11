@@ -192,7 +192,140 @@ async function generateFormulas(ExcelJS) {
   console.log(`Wrote ${out}`)
 }
 
-const generators = [generateSimple, generateMerged, generateFormulas]
+async function generateConditionalFormat(ExcelJS) {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'fixture-generator'
+  wb.created = new Date()
+  const ws = wb.addWorksheet('Sheet1')
+
+  // Header
+  ws.getRow(1).values = ['Score', 'Name', 'Status']
+  ws.getRow(1).font = { bold: true }
+
+  // 20 rows of data with varying scores
+  for (let r = 2; r <= 21; r++) {
+    const score = Math.round(Math.sin(r * 17) * 50 + 50)  // 0-100
+    ws.getCell(`A${r}`).value = score
+    ws.getCell(`B${r}`).value = `User${r - 1}`
+    ws.getCell(`C${r}`).value = score >= 60 ? 'Pass' : 'Fail'
+  }
+
+  // Conditional formatting on Score column: 3-color scale
+  ws.addConditionalFormatting({
+    ref: 'A2:A21',
+    rules: [
+      {
+        type: 'colorScale',
+        priority: 1,
+        cfvo: [
+          { type: 'min' },
+          { type: 'percentile', value: 50 },
+          { type: 'max' },
+        ],
+        color: [
+          { argb: 'FFF8696B' },  // red
+          { argb: 'FFFFEB84' },  // yellow
+          { argb: 'FF63BE7B' },  // green
+        ],
+      },
+    ],
+  })
+
+  // Bold red for Fail status
+  ws.addConditionalFormatting({
+    ref: 'C2:C21',
+    rules: [
+      {
+        type: 'cellIs',
+        priority: 1,
+        operator: 'equal',
+        formulae: ['"Fail"'],
+        style: { font: { bold: true, color: { argb: 'FFFF0000' } } },
+      },
+    ],
+  })
+
+  for (let c = 1; c <= 3; c++) ws.getColumn(c).width = 12
+
+  const out = path.join(FIXTURES_DIR, 'conditional-format.xlsx')
+  await wb.xlsx.writeFile(out)
+  console.log(`Wrote ${out}`)
+}
+
+async function generateMultiSheet(ExcelJS) {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'fixture-generator'
+  wb.created = new Date()
+
+  // Sheet 1: Summary
+  const summary = wb.addWorksheet('Summary')
+  summary.getRow(1).values = ['Region', 'Q1', 'Q2', 'Q3', 'Q4']
+  summary.getRow(1).font = { bold: true }
+  const regions = ['North', 'South', 'East', 'West']
+  for (let i = 0; i < regions.length; i++) {
+    const r = i + 2
+    summary.getCell(`A${r}`).value = regions[i]
+    for (let q = 1; q <= 4; q++) {
+      summary.getRow(r).getCell(q + 1).value = Math.round(Math.sin(i * 4 + q) * 1000 + 5000)
+    }
+  }
+
+  // Sheet 2: Details
+  const details = wb.addWorksheet('Details')
+  details.getRow(1).values = ['Item', 'Region', 'Quantity']
+  details.getRow(1).font = { bold: true }
+  for (let r = 2; r <= 21; r++) {
+    details.getCell(`A${r}`).value = `Item-${r - 1}`
+    details.getCell(`B${r}`).value = regions[(r - 2) % 4]
+    details.getCell(`C${r}`).value = Math.floor(Math.abs(Math.sin(r) * 100))
+  }
+
+  // Sheet 3: Notes
+  const notes = wb.addWorksheet('Notes')
+  notes.getCell('A1').value = 'Multi-sheet fixture'
+  notes.getCell('A1').font = { italic: true, size: 14 }
+  notes.getCell('A3').value = 'Use this to verify round-trip preserves sheet order, names, and per-sheet content.'
+
+  for (const ws of [summary, details, notes]) {
+    for (let c = 1; c <= 5; c++) ws.getColumn(c).width = 14
+  }
+
+  const out = path.join(FIXTURES_DIR, 'multi-sheet.xlsx')
+  await wb.xlsx.writeFile(out)
+  console.log(`Wrote ${out}`)
+}
+
+async function generateLarge10kRows(ExcelJS) {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'fixture-generator'
+  wb.created = new Date()
+  const ws = wb.addWorksheet('Sheet1')
+
+  ws.getRow(1).values = ['Row', 'Value']
+  ws.getRow(1).font = { bold: true }
+
+  // 10,000 rows
+  for (let r = 2; r <= 10001; r++) {
+    ws.getCell(`A${r}`).value = `row_${r - 1}`
+    ws.getCell(`B${r}`).value = Math.round(Math.sin(r) * 10000) / 100
+  }
+
+  ws.getColumn(1).width = 14
+  ws.getColumn(2).width = 12
+
+  const out = path.join(FIXTURES_DIR, 'large-10k-rows.xlsx')
+  await wb.xlsx.writeFile(out)
+  console.log(`Wrote ${out}`)
+}
+
+const generators = [
+  generateSimple,
+  generateMerged,
+  generateFormulas,
+  generateConditionalFormat,
+  generateMultiSheet,
+  generateLarge10kRows,
+]
 const ExcelJS = await loadExcelJs()
 fs.mkdirSync(FIXTURES_DIR, { recursive: true })
 for (const gen of generators) {
