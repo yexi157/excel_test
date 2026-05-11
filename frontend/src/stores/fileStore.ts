@@ -17,6 +17,7 @@ interface State {
   saveState: SaveState
   univerInstance: Univer | null
   univerAPI: FUniver | null
+  _ignoreInitial: boolean
 }
 
 export const useFileStore = defineStore('file', {
@@ -28,6 +29,7 @@ export const useFileStore = defineStore('file', {
     saveState: 'idle',
     univerInstance: null,
     univerAPI: null,
+    _ignoreInitial: true,
   }),
 
   actions: {
@@ -37,8 +39,14 @@ export const useFileStore = defineStore('file', {
       this.univerAPI = api
     },
 
+    /** 切换文件时由 store 设为 true，加载完后 nextTick 设回 false */
+    setIgnoreInitial(value: boolean) {
+      this._ignoreInitial = value
+    },
+
     /** 由 UniverHost 在 commandService 监听到 mutation 时调用 */
     markDirty() {
+      if (this._ignoreInitial) return
       this.dirty = true
     },
 
