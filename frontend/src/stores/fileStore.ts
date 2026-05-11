@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import type { Univer } from '@univerjs/core'
 import type { FUniver } from '@univerjs/core/facade'
+// Side-effect import: augments FUniver with sheet-related methods (getActiveWorkbook, etc.)
+import '@univerjs/sheets/facade'
 import type { FileTreeNode } from '@/api/types'
 import { fileApi } from '@/api/fileApi'
 import { xlsxConverter } from '@/utils/xlsxConverter'
