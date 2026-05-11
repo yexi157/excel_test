@@ -1,0 +1,65 @@
+import { defineStore } from 'pinia'
+import type { Univer } from '@univerjs/core'
+import type { FUniver } from '@univerjs/core/facade'
+import type { FileTreeNode } from '@/api/types'
+import { fileApi } from '@/api/fileApi'
+import { xlsxConverter } from '@/utils/xlsxConverter'
+
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+interface State {
+  treeNodes: FileTreeNode[]
+  currentFileId: string | null
+  currentFileName: string | null
+  dirty: boolean
+  saveState: SaveState
+  univerInstance: Univer | null
+  univerAPI: FUniver | null
+}
+
+export const useFileStore = defineStore('file', {
+  state: (): State => ({
+    treeNodes: [],
+    currentFileId: null,
+    currentFileName: null,
+    dirty: false,
+    saveState: 'idle',
+    univerInstance: null,
+    univerAPI: null,
+  }),
+
+  actions: {
+    /** 由 UniverHost 在 onMounted 调用 */
+    bindUniver(instance: Univer, api: FUniver) {
+      this.univerInstance = instance
+      this.univerAPI = api
+    },
+
+    /** 由 UniverHost 在 commandService 监听到 mutation 时调用 */
+    markDirty() {
+      this.dirty = true
+    },
+
+    async refreshTree() {
+      this.treeNodes = await fileApi.listTree()
+    },
+
+    async save() {
+      if (!this.currentFileId || !this.univerAPI) return
+      this.saveState = 'saving'
+      try {
+        const snapshot = this.univerAPI.getActiveWorkbook()!.save()
+        const blob = await xlsxConverter.toXlsx(snapshot, this.currentFileName ?? 'untitled.xlsx')
+        await fileApi.saveFile(this.currentFileId, blob)
+        this.dirty = false
+        this.saveState = 'saved'
+        setTimeout(() => { if (this.saveState === 'saved') this.saveState = 'idle' }, 3000)
+      } catch (e) {
+        this.saveState = 'error'
+        throw e
+      }
+    },
+
+    // 后续补充：openFile (task 5.1), upload (5.4), download (5.5), createNewSheet (5.6), rename/delete/createFolder (5.7)
+  },
+})
