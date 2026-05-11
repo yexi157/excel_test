@@ -1159,9 +1159,7 @@ export function createFileApi(client: AxiosInstance = axios.create({ baseURL: '/
         const form = new FormData()
         if (parentId) form.append('parentId', parentId)
         form.append('file', new File([blob], name, { type: XLSX_MIME }))
-        const res = await client.post<FileMetadata>('/files', form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
+        const res = await client.post<FileMetadata>('/files', form)
         return res.data
       } catch (e) { throw wrap(e) }
     },
