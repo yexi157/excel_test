@@ -1,9 +1,18 @@
 <script setup lang="ts">
-// Task 4.5 实现
+import ToolbarBar from './ToolbarBar.vue'
+import UniverHost from './UniverHost.vue'
 </script>
+
 <template>
-  <div class="editor-placeholder">编辑器（待实现）</div>
+  <div class="editor-panel">
+    <ToolbarBar />
+    <div class="editor-host">
+      <UniverHost />
+    </div>
+  </div>
 </template>
+
 <style scoped>
-.editor-placeholder { padding: 16px; color: #909399; }
+.editor-panel { height: 100%; display: flex; flex-direction: column; }
+.editor-host { flex: 1; min-height: 0; }
 </style>
