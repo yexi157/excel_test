@@ -57,3 +57,5 @@ export async function seedIfEmpty(): Promise<void> {
     await db.put('blobs', blob, id)
   }
 }
+
+export { resetDB } from './db'
