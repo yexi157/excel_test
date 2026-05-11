@@ -102,6 +102,42 @@ export const useFileStore = defineStore('file', {
       }
     },
 
+    async download(): Promise<'done' | 'cancel'> {
+      if (!this.currentFileId) return 'done'
+
+      if (this.dirty) {
+        const { ElMessageBox } = await import('element-plus')
+        try {
+          await ElMessageBox.confirm(
+            '当前有未保存改动。下载的将是后端最新已保存版本。',
+            '继续下载？',
+            {
+              distinguishCancelAndClose: true,
+              confirmButtonText: '先保存再下载',
+              cancelButtonText: '直接下载已保存版本',
+              type: 'warning',
+            },
+          )
+          // 用户选先保存
+          await this.save()
+        } catch (action) {
+          if (action === 'close') return 'cancel'   // X 关闭 = 取消
+          // 'cancel' 走"直接下载"路径
+        }
+      }
+
+      const blob = await fileApi.getFile(this.currentFileId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = this.currentFileName ?? 'download.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      return 'done'
+    },
+
     async upload(parentId: string | null, file: File) {
       if (!file.name.toLowerCase().endsWith('.xlsx')) {
         throw new Error('只支持 .xlsx 文件')

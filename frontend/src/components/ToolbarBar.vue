@@ -49,7 +49,13 @@ async function onFileChosen(e: Event) {
   }
 }
 
-function onDownload() { /* task 5.5 */ }
+async function onDownload() {
+  try {
+    await store.download()
+  } catch (e: any) {
+    ElMessage.error(`下载失败：${e.message ?? e}`)
+  }
+}
 </script>
 
 <template>
