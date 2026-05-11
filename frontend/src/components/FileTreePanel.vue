@@ -11,10 +11,13 @@ const treeProps = {
   label: 'name',
 }
 
-function onNodeClick(node: FileTreeNode) {
+async function onNodeClick(node: FileTreeNode) {
   if (node.type !== 'file') return
-  // task 5.1 实现 openFile
-  console.log('[FileTreePanel] click', node.id, node.name)
+  try {
+    await store.openFile(node.id)
+  } catch (e) {
+    console.error('[openFile] failed:', e)
+  }
 }
 
 // task 5.7 实现右键菜单（重命名/删除/新建文件夹/新建文件）

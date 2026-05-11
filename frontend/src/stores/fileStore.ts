@@ -54,6 +54,38 @@ export const useFileStore = defineStore('file', {
       this.treeNodes = await fileApi.listTree()
     },
 
+    async openFile(id: string) {
+      const { guardDirty } = await import('@/utils/guardDirty')
+      if ((await guardDirty()) === 'cancel') return
+      if (!this.univerInstance) throw new Error('Univer not bound')
+
+      const blob = await fileApi.getFile(id)
+      // 找文件名
+      const found = findNodeById(this.treeNodes, id)
+      const fileName = found?.name ?? 'untitled.xlsx'
+      const workbookData = await xlsxConverter.toUniver(blob, fileName)
+
+      if (this.currentFileId) {
+        this.univerAPI?.disposeUnit(this.currentFileId)
+      }
+      this.setIgnoreInitial(true)
+
+      const { UniverInstanceType } = await import('@univerjs/core')
+      this.univerInstance.createUnit(UniverInstanceType.UNIVER_SHEET, {
+        ...workbookData,
+        id,
+      })
+
+      this.currentFileId = id
+      this.currentFileName = fileName
+      this.dirty = false
+      this.saveState = 'idle'
+
+      // nextTick 后允许后续 mutation 触发 dirty
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+      this.setIgnoreInitial(false)
+    },
+
     async save() {
       if (!this.currentFileId || !this.univerAPI) return
       this.saveState = 'saving'
@@ -70,6 +102,17 @@ export const useFileStore = defineStore('file', {
       }
     },
 
-    // 后续补充：openFile (task 5.1), upload (5.4), download (5.5), createNewSheet (5.6), rename/delete/createFolder (5.7)
+    // 后续补充：upload (5.4), download (5.5), createNewSheet (5.6), rename/delete/createFolder (5.7)
   },
 })
+
+function findNodeById(nodes: FileTreeNode[], id: string): FileTreeNode | undefined {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    if (n.children) {
+      const hit = findNodeById(n.children, id)
+      if (hit) return hit
+    }
+  }
+  return undefined
+}

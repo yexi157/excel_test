@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { UniverInstanceType } from '@univerjs/core'
 import { useFileStore } from '@/stores/fileStore'
 
 vi.mock('@/api/fileApi', () => ({
@@ -69,5 +70,31 @@ describe('fileStore', () => {
     await promise
     expect(store.saveState).toBe('saved')
     expect(store.dirty).toBe(false)
+  })
+
+  it('openFile 完成后状态正确', async () => {
+    const store = useFileStore()
+    store.treeNodes = [
+      { id: 'f1', name: 'a.xlsx', type: 'file', parentId: null },
+    ]
+    const fakeUniver = {
+      createUnit: vi.fn(),
+    } as any
+    const fakeAPI = {
+      disposeUnit: vi.fn(),
+    } as any
+    store.bindUniver(fakeUniver, fakeAPI)
+
+    // mock fileApi.getFile + xlsxConverter.toUniver
+    const { fileApi } = await import('@/api/fileApi')
+    const { xlsxConverter } = await import('@/utils/xlsxConverter')
+    vi.mocked(fileApi.getFile = vi.fn().mockResolvedValue(new Blob(['x'])))
+    vi.mocked(xlsxConverter.toUniver = vi.fn().mockResolvedValue({ id: 'f1', sheetOrder: ['s1'], sheets: { s1: {} } }))
+
+    await store.openFile('f1')
+    expect(store.currentFileId).toBe('f1')
+    expect(store.currentFileName).toBe('a.xlsx')
+    expect(store.dirty).toBe(false)
+    expect(fakeUniver.createUnit).toHaveBeenCalledWith(UniverInstanceType.UNIVER_SHEET, expect.objectContaining({ id: 'f1' }))
   })
 })
