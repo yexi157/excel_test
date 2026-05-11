@@ -138,6 +138,24 @@ export const useFileStore = defineStore('file', {
       return 'done'
     },
 
+    async createNewSheet(parentId: string | null, name: string) {
+      const finalName = name.toLowerCase().endsWith('.xlsx') ? name : `${name}.xlsx`
+      const empty = {
+        id: 'pending',           // 后端会用 uploadFile 生成新 id
+        sheetOrder: ['s1'],
+        sheets: {
+          s1: { id: 's1', name: 'Sheet1', rowCount: 100, columnCount: 26 },
+        },
+        styles: {},
+        appVersion: '0.21.0',
+        locale: 'zhCN',
+      }
+      const blob = await xlsxConverter.toXlsx(empty as any, finalName)
+      const meta = await fileApi.uploadFile(parentId, finalName, blob)
+      await this.refreshTree()
+      await this.openFile(meta.id)
+    },
+
     async upload(parentId: string | null, file: File) {
       if (!file.name.toLowerCase().endsWith('.xlsx')) {
         throw new Error('只支持 .xlsx 文件')
@@ -150,7 +168,7 @@ export const useFileStore = defineStore('file', {
       await this.openFile(meta.id)
     },
 
-    // 后续补充：download (5.5), createNewSheet (5.6), rename/delete/createFolder (5.7)
+    // 后续补充：rename/delete/createFolder (5.7)
   },
 })
 
