@@ -54,6 +54,13 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (store.dirty) {
+    e.preventDefault()
+    e.returnValue = '当前文件有未保存的改动，确定离开吗？'
+  }
+}
+
 onMounted(() => {
   univer = new Univer({
     theme: defaultTheme,
@@ -100,12 +107,14 @@ onMounted(() => {
   })
 
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('beforeunload', onBeforeUnload)
 })
 
 onUnmounted(() => {
   mutationDisposable?.dispose()
   univer?.dispose()
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 
