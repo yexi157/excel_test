@@ -1,0 +1,11 @@
+# Skill installer caches (project-local skill copies / symlinks; not source)
+.agents/
+.claude/
+skills-lock.json
+
+# Stray root lock file (real npm project lives in frontend/)
+/package-lock.json
+
+# OS / editor
+.DS_Store
+*.log
