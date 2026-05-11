@@ -138,6 +138,30 @@ export const useFileStore = defineStore('file', {
       return 'done'
     },
 
+    async createFolder(parentId: string | null, name: string) {
+      await fileApi.createFolder(parentId, name)
+      await this.refreshTree()
+    },
+
+    async renameNode(id: string, newName: string) {
+      await fileApi.renameFile(id, newName)
+      if (this.currentFileId === id) {
+        this.currentFileName = newName
+      }
+      await this.refreshTree()
+    },
+
+    async removeNode(id: string) {
+      await fileApi.deleteFile(id)
+      if (this.currentFileId === id) {
+        if (this.univerInstance) this.univerAPI?.disposeUnit(id)
+        this.currentFileId = null
+        this.currentFileName = null
+        this.dirty = false
+      }
+      await this.refreshTree()
+    },
+
     async createNewSheet(parentId: string | null, name: string) {
       const finalName = name.toLowerCase().endsWith('.xlsx') ? name : `${name}.xlsx`
       const empty = {
@@ -167,8 +191,6 @@ export const useFileStore = defineStore('file', {
       await this.refreshTree()
       await this.openFile(meta.id)
     },
-
-    // 后续补充：rename/delete/createFolder (5.7)
   },
 })
 

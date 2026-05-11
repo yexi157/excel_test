@@ -50,13 +50,73 @@ function newFileFromContext() {
   closeMenu()
   newFile(contextNode.value)
 }
+
+async function renameFromContext() {
+  closeMenu()
+  if (!contextNode.value) return
+  try {
+    const { value } = await ElMessageBox.prompt('新名称', '重命名', {
+      inputValue: contextNode.value.name,
+      inputPattern: /^[^\\/:*?"<>|]+$/,
+      inputErrorMessage: '名称含非法字符',
+    })
+    await store.renameNode(contextNode.value.id, value)
+    ElMessage.success('已重命名')
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(`重命名失败：${e.message ?? e}`)
+  }
+}
+
+async function removeFromContext() {
+  closeMenu()
+  if (!contextNode.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确认删除「${contextNode.value.name}」${contextNode.value.type === 'folder' ? '及其全部内容' : ''}？`,
+      '危险操作',
+      { type: 'warning' },
+    )
+    await store.removeNode(contextNode.value.id)
+    ElMessage.success('已删除')
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(`删除失败：${e.message ?? e}`)
+  }
+}
+
+async function newFolderFromContext() {
+  closeMenu()
+  const parentId = contextNode.value?.type === 'folder'
+    ? contextNode.value.id
+    : (contextNode.value?.parentId ?? null)
+  try {
+    const { value } = await ElMessageBox.prompt('文件夹名', '新建文件夹', {
+      inputPattern: /^[^\\/:*?"<>|]+$/,
+      inputErrorMessage: '名称含非法字符',
+    })
+    await store.createFolder(parentId, value)
+    ElMessage.success('已创建')
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(`创建失败：${e.message ?? e}`)
+  }
+}
+
+function newFolderAtRoot() {
+  contextNode.value = null
+  newFolderFromContext()
+}
 </script>
 
 <template>
   <div class="tree-panel" @click="closeMenu">
     <div class="tree-panel-header">
       <span>文件</span>
-      <el-button size="small" text @click="newFile(null)">+ 新建</el-button>
+      <div class="header-actions">
+        <el-button size="small" text @click="newFile(null)">+ 文件</el-button>
+        <el-button size="small" text @click="newFolderAtRoot">+ 文件夹</el-button>
+      </div>
     </div>
     <el-tree
       :data="treeData"
@@ -76,7 +136,9 @@ function newFileFromContext() {
 
     <div v-if="menuVisible" class="ctx-menu" :style="menuStyle" @click.stop>
       <div class="ctx-item" @click="newFileFromContext">新建文件</div>
-      <!-- task 5.7 增加：重命名 / 删除 / 新建文件夹 -->
+      <div class="ctx-item" @click="newFolderFromContext">新建文件夹</div>
+      <div class="ctx-item" @click="renameFromContext">重命名</div>
+      <div class="ctx-item ctx-item-danger" @click="removeFromContext">删除</div>
     </div>
   </div>
 </template>
@@ -97,4 +159,6 @@ function newFileFromContext() {
 }
 .ctx-item { padding: 8px 16px; cursor: pointer; }
 .ctx-item:hover { background: #f5f7fa; }
+.ctx-item-danger { color: #f56c6c; }
+.header-actions { display: flex; gap: 4px; }
 </style>
