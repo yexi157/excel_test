@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Univer } from '@univerjs/core'
+import type { IWorkbookData, Univer } from '@univerjs/core'
 import type { FUniver } from '@univerjs/core/facade'
 // Side-effect import: augments FUniver with sheet-related methods (getActiveWorkbook, etc.)
 import '@univerjs/sheets/facade'
@@ -9,6 +9,8 @@ import { xlsxConverter } from '@/utils/xlsxConverter'
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
+export type RecreateUniverFn = (workbookData: IWorkbookData) => void
+
 interface State {
   treeNodes: FileTreeNode[]
   currentFileId: string | null
@@ -17,6 +19,7 @@ interface State {
   saveState: SaveState
   univerInstance: Univer | null
   univerAPI: FUniver | null
+  recreateUniver: RecreateUniverFn | null
   _ignoreInitial: boolean
 }
 
@@ -29,14 +32,16 @@ export const useFileStore = defineStore('file', {
     saveState: 'idle',
     univerInstance: null,
     univerAPI: null,
+    recreateUniver: null,
     _ignoreInitial: true,
   }),
 
   actions: {
-    /** 由 UniverHost 在 onMounted 调用 */
-    bindUniver(instance: Univer, api: FUniver) {
+    /** 由 UniverHost 在 onMounted / 重建后调用 */
+    bindUniver(instance: Univer, api: FUniver, recreate?: RecreateUniverFn) {
       this.univerInstance = instance
       this.univerAPI = api
+      if (recreate) this.recreateUniver = recreate
     },
 
     /** 切换文件时由 store 设为 true，加载完后 nextTick 设回 false */
@@ -57,7 +62,7 @@ export const useFileStore = defineStore('file', {
     async openFile(id: string) {
       const { guardDirty } = await import('@/utils/guardDirty')
       if ((await guardDirty()) === 'cancel') return
-      if (!this.univerInstance) throw new Error('Univer not bound')
+      if (!this.recreateUniver) throw new Error('Univer not bound')
 
       const blob = await fileApi.getFile(id)
       // 找文件名
@@ -65,24 +70,26 @@ export const useFileStore = defineStore('file', {
       const fileName = found?.name ?? 'untitled.xlsx'
       const workbookData = await xlsxConverter.toUniver(blob, fileName)
 
-      if (this.currentFileId) {
-        this.univerAPI?.disposeUnit(this.currentFileId)
-      }
+      // 屏蔽初始 mutations —— 必须早于任何 unit/Univer 操作，
+      // 否则 dispose / new Univer 触发的 mutation 会 leak 到 markDirty
       this.setIgnoreInitial(true)
 
-      const { UniverInstanceType } = await import('@univerjs/core')
-      this.univerInstance.createUnit(UniverInstanceType.UNIVER_SHEET, {
+      // Spec §8.4 R2 fallback：完全重建 Univer 实例
+      // disposeUnit + createUnit 会让 RefSelectionsRenderService 残留旧 unit id 崩溃
+      this.recreateUniver({
         ...workbookData,
         id,
-      })
+      } as IWorkbookData)
 
       this.currentFileId = id
       this.currentFileName = fileName
       this.dirty = false
       this.saveState = 'idle'
 
-      // nextTick 后允许后续 mutation 触发 dirty
-      await new Promise<void>(resolve => setTimeout(resolve, 0))
+      // 等 Univer 异步 init mutation 全部 settle
+      // setTimeout(0) 太短跨不过 plugin chain；200ms 是经验值
+      await new Promise<void>(resolve => setTimeout(resolve, 200))
+      this.dirty = false                 // belt-and-suspenders：延时后再清一次
       this.setIgnoreInitial(false)
     },
 
@@ -154,10 +161,25 @@ export const useFileStore = defineStore('file', {
     async removeNode(id: string) {
       await fileApi.deleteFile(id)
       if (this.currentFileId === id) {
-        if (this.univerInstance) this.univerAPI?.disposeUnit(id)
-        this.currentFileId = null
-        this.currentFileName = null
-        this.dirty = false
+        if (this.recreateUniver) {
+          // 重建空 Univer，避免 disposeUnit 残留崩溃；同时视觉上清空编辑区
+          this.setIgnoreInitial(true)
+          this.recreateUniver({
+            id: 'empty',
+            sheetOrder: ['s1'],
+            sheets: { s1: { id: 's1', name: 'Sheet1', rowCount: 100, columnCount: 26 } },
+          } as unknown as IWorkbookData)
+          this.currentFileId = null
+          this.currentFileName = null
+          this.dirty = false
+          await new Promise<void>(resolve => setTimeout(resolve, 200))
+          this.dirty = false
+          this.setIgnoreInitial(false)
+        } else {
+          this.currentFileId = null
+          this.currentFileName = null
+          this.dirty = false
+        }
       }
       await this.refreshTree()
     },

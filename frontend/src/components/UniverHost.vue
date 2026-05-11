@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { CommandType, ICommandService, LocaleType, LogLevel, Univer, merge } from '@univerjs/core'
+import { CommandType, ICommandService, LocaleType, LogLevel, Univer, UniverInstanceType, merge, type IWorkbookData } from '@univerjs/core'
 import { defaultTheme } from '@univerjs/themes'
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render'
 import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula'
@@ -45,24 +45,12 @@ const container = ref<HTMLDivElement>()
 let univer: Univer | null = null
 let mutationDisposable: { dispose: () => void } | null = null
 
-function onKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-    e.preventDefault()
-    if (store.currentFileId) {
-      store.save().catch(err => console.error('[Ctrl+S save] failed:', err))
-    }
-  }
-}
-
-function onBeforeUnload(e: BeforeUnloadEvent) {
-  if (store.dirty) {
-    e.preventDefault()
-    e.returnValue = '当前文件有未保存的改动，确定离开吗？'
-  }
-}
-
-onMounted(() => {
-  univer = new Univer({
+/**
+ * 构造一个新的 Univer 实例（含 plugins / mutation listener）。
+ * 可选：附带 workbookData 时，会立刻 createUnit。
+ */
+function buildUniver(workbookData?: IWorkbookData) {
+  const u = new Univer({
     theme: defaultTheme,
     locale: LocaleType.ZH_CN,
     locales: {
@@ -80,7 +68,7 @@ onMounted(() => {
     },
     logLevel: LogLevel.WARN,
   })
-  univer.registerPlugins([
+  u.registerPlugins([
     [UniverRenderEnginePlugin],
     [UniverFormulaEnginePlugin],
     [UniverUIPlugin, { container: container.value! }],
@@ -95,16 +83,60 @@ onMounted(() => {
     [UniverSheetsNumfmtUIPlugin],
   ])
 
-  const api = FUniver.newAPI(univer)
-  store.bindUniver(univer, api)
+  if (workbookData) {
+    u.createUnit(UniverInstanceType.UNIVER_SHEET, workbookData)
+  }
+
+  const api = FUniver.newAPI(u)
 
   // 监听 mutation 设 dirty（spec §6.1）
-  const commandService = (univer as any).__getInjector().get(ICommandService)
-  mutationDisposable = commandService.onCommandExecuted((info: { type: number }) => {
+  const commandService = (u as any).__getInjector().get(ICommandService)
+  const disposable = commandService.onCommandExecuted((info: { type: number }) => {
     if (info.type === CommandType.MUTATION) {
       store.markDirty()
     }
   })
+
+  return { univer: u, api, disposable }
+}
+
+/**
+ * Spec §8.4 R2 fallback：完全重建 Univer 实例。
+ * 解决 disposeUnit 后 SheetsSelectionsService / RefSelectionsRenderService 残留 stale unit id 的崩溃。
+ */
+function recreate(workbookData: IWorkbookData) {
+  mutationDisposable?.dispose()
+  univer?.dispose()
+  mutationDisposable = null
+  univer = null
+
+  const built = buildUniver(workbookData)
+  univer = built.univer
+  mutationDisposable = built.disposable
+  store.bindUniver(built.univer, built.api, recreate)
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    if (store.currentFileId) {
+      store.save().catch(err => console.error('[Ctrl+S save] failed:', err))
+    }
+  }
+}
+
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (store.dirty) {
+    e.preventDefault()
+    e.returnValue = '当前文件有未保存的改动，确定离开吗？'
+  }
+}
+
+onMounted(() => {
+  const built = buildUniver()
+  univer = built.univer
+  mutationDisposable = built.disposable
+  store.bindUniver(built.univer, built.api, recreate)
 
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('beforeunload', onBeforeUnload)

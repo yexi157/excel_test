@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { UniverInstanceType } from '@univerjs/core'
 import { useFileStore } from '@/stores/fileStore'
 
 vi.mock('@/api/fileApi', () => ({
@@ -77,13 +76,10 @@ describe('fileStore', () => {
     store.treeNodes = [
       { id: 'f1', name: 'a.xlsx', type: 'file', parentId: null },
     ]
-    const fakeUniver = {
-      createUnit: vi.fn(),
-    } as any
-    const fakeAPI = {
-      disposeUnit: vi.fn(),
-    } as any
-    store.bindUniver(fakeUniver, fakeAPI)
+    const fakeUniver = {} as any
+    const fakeAPI = {} as any
+    const mockRecreate = vi.fn()
+    store.bindUniver(fakeUniver, fakeAPI, mockRecreate)
 
     // mock fileApi.getFile + xlsxConverter.toUniver
     const { fileApi } = await import('@/api/fileApi')
@@ -95,6 +91,6 @@ describe('fileStore', () => {
     expect(store.currentFileId).toBe('f1')
     expect(store.currentFileName).toBe('a.xlsx')
     expect(store.dirty).toBe(false)
-    expect(fakeUniver.createUnit).toHaveBeenCalledWith(UniverInstanceType.UNIVER_SHEET, expect.objectContaining({ id: 'f1' }))
+    expect(mockRecreate).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1' }))
   })
 })
