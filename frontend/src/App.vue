@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { LocaleType, LogLevel, Univer, UniverInstanceType } from '@univerjs/core'
+import { LocaleType, LogLevel, merge, Univer, UniverInstanceType } from '@univerjs/core'
 import { defaultTheme } from '@univerjs/themes'
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render'
 import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula'
 import { UniverUIPlugin } from '@univerjs/ui'
 import { UniverVue3AdapterPlugin } from '@univerjs/ui-adapter-vue3'
+import { UniverDocsPlugin } from '@univerjs/docs'
+import { UniverDocsUIPlugin } from '@univerjs/docs-ui'
 import { UniverSheetsPlugin } from '@univerjs/sheets'
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui'
 import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula'
@@ -13,10 +15,21 @@ import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui'
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt'
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui'
 import { FUniver } from '@univerjs/core/facade'
-import LuckyExcel from '@zwight/luckyexcel'
+import LuckyExcel from '@mertdeveci55/univer-import-export'
+
+// Locale dictionaries
+import DesignZhCN from '@univerjs/design/locale/zh-CN'
+import UIZhCN from '@univerjs/ui/locale/zh-CN'
+import DocsUIZhCN from '@univerjs/docs-ui/locale/zh-CN'
+import SheetsZhCN from '@univerjs/sheets/locale/zh-CN'
+import SheetsUIZhCN from '@univerjs/sheets-ui/locale/zh-CN'
+import SheetsFormulaZhCN from '@univerjs/sheets-formula/locale/zh-CN'
+import SheetsFormulaUIZhCN from '@univerjs/sheets-formula-ui/locale/zh-CN'
+import SheetsNumfmtUIZhCN from '@univerjs/sheets-numfmt-ui/locale/zh-CN'
 
 import '@univerjs/design/lib/index.css'
 import '@univerjs/ui/lib/index.css'
+import '@univerjs/docs-ui/lib/index.css'
 import '@univerjs/sheets-ui/lib/index.css'
 import '@univerjs/sheets-formula-ui/lib/index.css'
 import '@univerjs/sheets-numfmt-ui/lib/index.css'
@@ -36,6 +49,19 @@ function createUniver() {
   const u = new Univer({
     theme: defaultTheme,
     locale: LocaleType.ZH_CN,
+    locales: {
+      [LocaleType.ZH_CN]: merge(
+        {},
+        DesignZhCN,
+        UIZhCN,
+        DocsUIZhCN,
+        SheetsZhCN,
+        SheetsUIZhCN,
+        SheetsFormulaZhCN,
+        SheetsFormulaUIZhCN,
+        SheetsNumfmtUIZhCN,
+      ),
+    },
     logLevel: LogLevel.WARN,
   })
   u.registerPlugins([
@@ -43,6 +69,8 @@ function createUniver() {
     [UniverFormulaEnginePlugin],
     [UniverUIPlugin, { container: container.value! }],
     [UniverVue3AdapterPlugin],
+    [UniverDocsPlugin],
+    [UniverDocsUIPlugin],
     [UniverSheetsPlugin],
     [UniverSheetsUIPlugin],
     [UniverSheetsFormulaPlugin],

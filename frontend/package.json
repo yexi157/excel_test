@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@mertdeveci55/univer-import-export": "^0.2.1",
     "@univerjs/core": "^0.22.0",
     "@univerjs/design": "^0.22.0",
+    "@univerjs/docs": "^0.22.0",
+    "@univerjs/docs-ui": "^0.22.0",
     "@univerjs/engine-formula": "^0.22.0",
     "@univerjs/engine-render": "^0.22.0",
     "@univerjs/sheets": "^0.22.0",
@@ -25,12 +28,12 @@
     "@univerjs/themes": "^0.22.0",
     "@univerjs/ui": "^0.22.0",
     "@univerjs/ui-adapter-vue3": "^0.22.0",
-    "@zwight/luckyexcel": "^1.1.6",
     "axios": "^1.16.0",
     "element-plus": "^2.14.0",
     "idb": "^8.0.3",
     "pinia": "^2.1.0",
-    "vue": "^3.4.0"
+    "vue": "^3.4.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
