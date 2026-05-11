@@ -39,6 +39,7 @@ import '@univerjs/sheets-ui/facade'
 import '@univerjs/engine-formula/facade'
 
 import { useFileStore } from '@/stores/fileStore'
+import { registerHeaderHighlight } from '@/utils/headerHighlight'
 
 const store = useFileStore()
 const container = ref<HTMLDivElement>()
@@ -97,9 +98,31 @@ function buildUniver(workbookData?: IWorkbookData) {
 
   const api = FUniver.newAPI(u)
 
-  const disposable = api.addEvent(api.Event.SheetValueChanged, () => {
+  const dirtyListener = api.addEvent(api.Event.SheetValueChanged, () => {
     store.markDirty()
   })
+
+  // UI-only header-row highlight (row 0, non-empty cells, light-blue translucent
+  // canvas overlay). Register on Steady so sheets-ui hook service is ready.
+  // Hook lifetime is tied to this Univer instance; both listeners are disposed
+  // together when the instance is torn down (recreate / unmount).
+  let headerHighlight: { dispose: () => void } | null = null
+  const lifecycleListener = api.addEvent(
+    api.Event.LifeCycleChanged,
+    ({ stage }: { stage: number }) => {
+      if (stage === api.Enum.LifecycleStages.Steady && !headerHighlight) {
+        headerHighlight = registerHeaderHighlight(api)
+      }
+    },
+  )
+
+  const disposable = {
+    dispose: () => {
+      headerHighlight?.dispose()
+      lifecycleListener.dispose()
+      dirtyListener.dispose()
+    },
+  }
 
   return { univer: u, api, disposable }
 }
