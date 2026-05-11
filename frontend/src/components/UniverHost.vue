@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { CommandType, ICommandService, LocaleType, LogLevel, Univer, UniverInstanceType, merge, type IWorkbookData } from '@univerjs/core'
+import { LocaleType, LogLevel, Univer, UniverInstanceType, merge, type IWorkbookData } from '@univerjs/core'
 import { defaultTheme } from '@univerjs/themes'
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render'
 import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula'
@@ -43,11 +43,19 @@ import { useFileStore } from '@/stores/fileStore'
 const store = useFileStore()
 const container = ref<HTMLDivElement>()
 let univer: Univer | null = null
-let mutationDisposable: { dispose: () => void } | null = null
+let dirtyDisposable: { dispose: () => void } | null = null
 
 /**
- * 构造一个新的 Univer 实例（含 plugins / mutation listener）。
+ * 构造一个新的 Univer 实例（含 plugins / dirty listener）。
  * 可选：附带 workbookData 时，会立刻 createUnit。
+ *
+ * dirty 检测策略（spec §6.1）：
+ *   - 监听 facade 的 SheetValueChanged：只在 SetRangeValuesMutation 等
+ *     真正改值的命令被 dispatch 时触发（用户编辑 / 外部 API 调用）
+ *   - createUnit 走数据模型构造路径，不会派发这些 mutation，
+ *     因此初始化期间不会触发 markDirty
+ *   - 比 commandService.onCommandExecuted 干净：后者在 init 期间被
+ *     大量底层 mutation（formula / skeleton / selections）误触发
  */
 function buildUniver(workbookData?: IWorkbookData) {
   const u = new Univer({
@@ -89,12 +97,8 @@ function buildUniver(workbookData?: IWorkbookData) {
 
   const api = FUniver.newAPI(u)
 
-  // 监听 mutation 设 dirty（spec §6.1）
-  const commandService = (u as any).__getInjector().get(ICommandService)
-  const disposable = commandService.onCommandExecuted((info: { type: number }) => {
-    if (info.type === CommandType.MUTATION) {
-      store.markDirty()
-    }
+  const disposable = api.addEvent(api.Event.SheetValueChanged, () => {
+    store.markDirty()
   })
 
   return { univer: u, api, disposable }
@@ -105,14 +109,14 @@ function buildUniver(workbookData?: IWorkbookData) {
  * 解决 disposeUnit 后 SheetsSelectionsService / RefSelectionsRenderService 残留 stale unit id 的崩溃。
  */
 function recreate(workbookData: IWorkbookData) {
-  mutationDisposable?.dispose()
+  dirtyDisposable?.dispose()
   univer?.dispose()
-  mutationDisposable = null
+  dirtyDisposable = null
   univer = null
 
   const built = buildUniver(workbookData)
   univer = built.univer
-  mutationDisposable = built.disposable
+  dirtyDisposable = built.disposable
   store.bindUniver(built.univer, built.api, recreate)
 }
 
@@ -135,7 +139,7 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 onMounted(() => {
   const built = buildUniver()
   univer = built.univer
-  mutationDisposable = built.disposable
+  dirtyDisposable = built.disposable
   store.bindUniver(built.univer, built.api, recreate)
 
   window.addEventListener('keydown', onKeydown)
@@ -143,7 +147,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  mutationDisposable?.dispose()
+  dirtyDisposable?.dispose()
   univer?.dispose()
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('beforeunload', onBeforeUnload)

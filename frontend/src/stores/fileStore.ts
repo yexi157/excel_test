@@ -20,7 +20,6 @@ interface State {
   univerInstance: Univer | null
   univerAPI: FUniver | null
   recreateUniver: RecreateUniverFn | null
-  _ignoreInitial: boolean
 }
 
 export const useFileStore = defineStore('file', {
@@ -33,7 +32,6 @@ export const useFileStore = defineStore('file', {
     univerInstance: null,
     univerAPI: null,
     recreateUniver: null,
-    _ignoreInitial: true,
   }),
 
   actions: {
@@ -44,14 +42,8 @@ export const useFileStore = defineStore('file', {
       if (recreate) this.recreateUniver = recreate
     },
 
-    /** 切换文件时由 store 设为 true，加载完后 nextTick 设回 false */
-    setIgnoreInitial(value: boolean) {
-      this._ignoreInitial = value
-    },
-
-    /** 由 UniverHost 在 commandService 监听到 mutation 时调用 */
+    /** 由 UniverHost 监听 onCellChange 时调用（用户编辑触发） */
     markDirty() {
-      if (this._ignoreInitial) return
       this.dirty = true
     },
 
@@ -70,10 +62,6 @@ export const useFileStore = defineStore('file', {
       const fileName = found?.name ?? 'untitled.xlsx'
       const workbookData = await xlsxConverter.toUniver(blob, fileName)
 
-      // 屏蔽初始 mutations —— 必须早于任何 unit/Univer 操作，
-      // 否则 dispose / new Univer 触发的 mutation 会 leak 到 markDirty
-      this.setIgnoreInitial(true)
-
       // Spec §8.4 R2 fallback：完全重建 Univer 实例
       // disposeUnit + createUnit 会让 RefSelectionsRenderService 残留旧 unit id 崩溃
       this.recreateUniver({
@@ -85,12 +73,7 @@ export const useFileStore = defineStore('file', {
       this.currentFileName = fileName
       this.dirty = false
       this.saveState = 'idle'
-
-      // 等 Univer 异步 init mutation 全部 settle
-      // setTimeout(0) 太短跨不过 plugin chain；200ms 是经验值
-      await new Promise<void>(resolve => setTimeout(resolve, 200))
-      this.dirty = false                 // belt-and-suspenders：延时后再清一次
-      this.setIgnoreInitial(false)
+      // 不需要 setTimeout 兜底：onCellChange 不会在初始化期间触发
     },
 
     async save() {
@@ -163,23 +146,15 @@ export const useFileStore = defineStore('file', {
       if (this.currentFileId === id) {
         if (this.recreateUniver) {
           // 重建空 Univer，避免 disposeUnit 残留崩溃；同时视觉上清空编辑区
-          this.setIgnoreInitial(true)
           this.recreateUniver({
             id: 'empty',
             sheetOrder: ['s1'],
             sheets: { s1: { id: 's1', name: 'Sheet1', rowCount: 100, columnCount: 26 } },
           } as unknown as IWorkbookData)
-          this.currentFileId = null
-          this.currentFileName = null
-          this.dirty = false
-          await new Promise<void>(resolve => setTimeout(resolve, 200))
-          this.dirty = false
-          this.setIgnoreInitial(false)
-        } else {
-          this.currentFileId = null
-          this.currentFileName = null
-          this.dirty = false
         }
+        this.currentFileId = null
+        this.currentFileName = null
+        this.dirty = false
       }
       await this.refreshTree()
     },

@@ -32,16 +32,8 @@ describe('fileStore', () => {
 
   it('markDirty 把 dirty 置为 true', () => {
     const store = useFileStore()
-    store.setIgnoreInitial(false)
     store.markDirty()
     expect(store.dirty).toBe(true)
-  })
-
-  it('markDirty 在 _ignoreInitial=true 时不改 dirty', () => {
-    const store = useFileStore()
-    // 初始 _ignoreInitial 为 true，markDirty 应直接 return
-    store.markDirty()
-    expect(store.dirty).toBe(false)
   })
 
   it('refreshTree 拉取并存入 treeNodes', async () => {
