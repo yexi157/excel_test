@@ -332,7 +332,7 @@ npm install \
 - [ ] **Step 2: 安装 Luckyexcel + axios + element-plus + idb**
 
 ```bash
-npm install @zwight/luckyexcel axios element-plus @element-plus/icons-vue idb
+npm install @mertdeveci55/univer-import-export xlsx @univerjs/docs @univerjs/docs-ui axios element-plus @element-plus/icons-vue idb
 ```
 
 - [ ] **Step 3: 安装测试与 mock 工具**
@@ -352,7 +352,7 @@ Expected: 生成 `frontend/public/mockServiceWorker.js`，并在 `package.json` 
 - [ ] **Step 5: 验证安装**
 
 ```bash
-ls node_modules/@univerjs/core node_modules/@zwight/luckyexcel node_modules/element-plus node_modules/msw
+ls node_modules/@univerjs/core node_modules/@univerjs/docs-ui node_modules/@mertdeveci55/univer-import-export node_modules/xlsx node_modules/element-plus node_modules/msw
 ls public/mockServiceWorker.js
 ```
 
@@ -613,7 +613,7 @@ import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui'
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt'
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui'
 import { FUniver } from '@univerjs/core/facade'
-import LuckyExcel from '@zwight/luckyexcel'
+import LuckyExcel from '@mertdeveci55/univer-import-export'
 
 import '@univerjs/design/lib/index.css'
 import '@univerjs/ui/lib/index.css'
@@ -955,7 +955,7 @@ export const xlsxConverter: XlsxConverter = createLuckyexcelConverter()
 `frontend/src/utils/xlsxConverter.luckyexcel.ts`:
 ```ts
 import type { IWorkbookData } from '@univerjs/core'
-import LuckyExcel from '@zwight/luckyexcel'
+import LuckyExcel from '@mertdeveci55/univer-import-export'
 import type { XlsxConverter } from './xlsxConverter'
 
 export function createLuckyexcelConverter(): XlsxConverter {
@@ -1055,7 +1055,7 @@ Expected: 测试运行；如果 Luckyexcel API 与代码假设不符或 jsdom �
 > **如果失败**：可能需要调整：
 > 1. `getBuffer: true` 选项不存在 → 改用文件名约定 + 拦截下载
 > 2. jsdom 缺 `URL.createObjectURL` → 在 setup.ts 加 polyfill
-> 3. 调用约定与文档不符 → 看 @zwight/luckyexcel npm readme 调整
+> 3. 调用约定与文档不符 → 看 @mertdeveci55/univer-import-export npm readme 调整
 
 修复后重新跑，直到 PASS。
 
@@ -2125,12 +2125,14 @@ interface State {
 ```vue
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { CommandType, ICommandService, LocaleType, LogLevel, Univer } from '@univerjs/core'
+import { CommandType, ICommandService, LocaleType, LogLevel, Univer, merge } from '@univerjs/core'
 import { defaultTheme } from '@univerjs/themes'
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render'
 import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula'
 import { UniverUIPlugin } from '@univerjs/ui'
 import { UniverVue3AdapterPlugin } from '@univerjs/ui-adapter-vue3'
+import { UniverDocsPlugin } from '@univerjs/docs'
+import { UniverDocsUIPlugin } from '@univerjs/docs-ui'
 import { UniverSheetsPlugin } from '@univerjs/sheets'
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui'
 import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula'
@@ -2139,8 +2141,19 @@ import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt'
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui'
 import { FUniver } from '@univerjs/core/facade'
 
+// zh-CN locale dictionaries — must merge per-plugin packs or LocaleService 报 not initialized
+import DesignZhCN from '@univerjs/design/locale/zh-CN'
+import UIZhCN from '@univerjs/ui/locale/zh-CN'
+import DocsUIZhCN from '@univerjs/docs-ui/locale/zh-CN'
+import SheetsZhCN from '@univerjs/sheets/locale/zh-CN'
+import SheetsUIZhCN from '@univerjs/sheets-ui/locale/zh-CN'
+import SheetsFormulaZhCN from '@univerjs/sheets-formula/locale/zh-CN'
+import SheetsFormulaUIZhCN from '@univerjs/sheets-formula-ui/locale/zh-CN'
+import SheetsNumfmtUIZhCN from '@univerjs/sheets-numfmt-ui/locale/zh-CN'
+
 import '@univerjs/design/lib/index.css'
 import '@univerjs/ui/lib/index.css'
+import '@univerjs/docs-ui/lib/index.css'
 import '@univerjs/sheets-ui/lib/index.css'
 import '@univerjs/sheets-formula-ui/lib/index.css'
 import '@univerjs/sheets-numfmt-ui/lib/index.css'
@@ -2161,6 +2174,19 @@ onMounted(() => {
   univer = new Univer({
     theme: defaultTheme,
     locale: LocaleType.ZH_CN,
+    locales: {
+      [LocaleType.ZH_CN]: merge(
+        {},
+        DesignZhCN,
+        UIZhCN,
+        DocsUIZhCN,
+        SheetsZhCN,
+        SheetsUIZhCN,
+        SheetsFormulaZhCN,
+        SheetsFormulaUIZhCN,
+        SheetsNumfmtUIZhCN,
+      ),
+    },
     logLevel: LogLevel.WARN,
   })
   univer.registerPlugins([
@@ -2168,6 +2194,8 @@ onMounted(() => {
     [UniverFormulaEnginePlugin],
     [UniverUIPlugin, { container: container.value! }],
     [UniverVue3AdapterPlugin],
+    [UniverDocsPlugin],          // docs core, required by sheets-ui's EditorBridgeService
+    [UniverDocsUIPlugin],        // provides IEditorService
     [UniverSheetsPlugin],
     [UniverSheetsUIPlugin],
     [UniverSheetsFormulaPlugin],
