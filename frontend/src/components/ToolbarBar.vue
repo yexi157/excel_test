@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useFileStore } from '@/stores/fileStore'
 
 const store = useFileStore()
+const fileInput = ref<HTMLInputElement>()
 
 const stateLabel = computed(() => {
   if (store.saveState === 'saving') return '保存中...'
@@ -20,7 +21,6 @@ const stateColor = computed(() => {
   return '#909399'
 })
 
-// 占位 handlers，task 5.4 onUpload / task 5.5 onDownload
 async function onSave() {
   try {
     await store.save()
@@ -29,7 +29,26 @@ async function onSave() {
     ElMessage.error(`保存失败：${e.message ?? e}`)
   }
 }
-function onUpload() { /* task 5.4 */ }
+
+function onUpload() {
+  fileInput.value?.click()
+}
+
+async function onFileChosen(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  try {
+    // 上传到根目录（task 5.7 增加上传到指定文件夹）
+    await store.upload(null, file)
+    ElMessage.success('上传成功')
+  } catch (err: any) {
+    ElMessage.error(`上传失败：${err.message ?? err}`)
+  } finally {
+    target.value = ''   // reset 让同一文件可重复选
+  }
+}
+
 function onDownload() { /* task 5.5 */ }
 </script>
 
@@ -44,19 +63,19 @@ function onDownload() { /* task 5.5 */ }
       <el-button size="small" :disabled="!store.currentFileId" @click="onSave">保存</el-button>
       <el-button size="small" @click="onUpload">上传 .xlsx</el-button>
       <el-button size="small" :disabled="!store.currentFileId" @click="onDownload">下载</el-button>
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".xlsx"
+        style="display: none"
+        @change="onFileChosen"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
-.toolbar {
-  height: 48px;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #e4e7ed;
-}
+.toolbar { height: 48px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e4e7ed; }
 .toolbar-left { display: flex; align-items: center; gap: 8px; }
 .filename { font-weight: 600; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }

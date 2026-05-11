@@ -102,7 +102,19 @@ export const useFileStore = defineStore('file', {
       }
     },
 
-    // 后续补充：upload (5.4), download (5.5), createNewSheet (5.6), rename/delete/createFolder (5.7)
+    async upload(parentId: string | null, file: File) {
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        throw new Error('只支持 .xlsx 文件')
+      }
+      if (file.size > 100 * 1024 * 1024) {
+        throw new Error('文件超过 100MB')
+      }
+      const meta = await fileApi.uploadFile(parentId, file.name, file)
+      await this.refreshTree()
+      await this.openFile(meta.id)
+    },
+
+    // 后续补充：download (5.5), createNewSheet (5.6), rename/delete/createFolder (5.7)
   },
 })
 
