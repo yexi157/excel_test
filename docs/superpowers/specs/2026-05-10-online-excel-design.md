@@ -221,7 +221,7 @@ state: {
 | `@univerjs/ui-adapter-vue3` | npm | 同上 |
 | `@univerjs/design/lib/index.css` | npm 路径 import | 不要换成 CDN |
 | Univer Formula Worker | Vite `new URL('./worker.ts', import.meta.url)` | Vite 自动 bundle 成本地；**禁止 `workerURL: 'https://...'`** |
-| Luckyexcel converter | `npm i @mertdeveci55/univer-import-export xlsx` | 注：原计划用 `@zwight/luckyexcel`，但其嵌套 Univer 0.6.x 与项目 0.22 冲突；R1 fallback 切换为 mertdeveci55（zwight 的 fork，peerDep 模式，honor 项目 Univer 版本）。运行时实际依赖 `xlsx`（SheetJS，未声明），需显式安装 |
+| Luckyexcel converter | `npm i @zwight/luckyexcel` | `xlsxConverter` 仅与 LuckyExcel 交换普通 workbook snapshot，不向应用注册它依赖的 Univer 0.6.x 运行时。1.1.6 导出公式时读取 `cell.si` 而非 `cell.f`，转换层需按需浅拷贝适配。导出缓冲需兼容 `ArrayBuffer` 和 `Buffer`/`Uint8Array`。 |
 | Vue 3 / Vite / TypeScript | npm | 默认本地 |
 | element-plus + 图标 | npm + `import 'element-plus/dist/index.css'` | 不要用 unpkg CDN 示例 |
 | MSW | npm + `npx msw init public/` | service worker 文件本地 |

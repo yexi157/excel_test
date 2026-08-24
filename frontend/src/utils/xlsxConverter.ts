@@ -1,5 +1,5 @@
 // 抽象接口：让 Luckyexcel 可替换（spec §5.3）。
-// 默认导出 mertdeveci55 实现；如踩坑可换 SheetJS 自写或后端 Python，调用方零改动。
+// 默认导出 @zwight/luckyexcel 实现；如踩坑可换 SheetJS 自写或后端 Python，调用方零改动。
 
 import type { IWorkbookData } from '@univerjs/core'
 import { createLuckyexcelConverter } from './xlsxConverter.luckyexcel'

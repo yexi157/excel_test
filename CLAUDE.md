@@ -75,7 +75,7 @@ These were learned the hard way during build-out — don't undo them without a s
 
 - **`fileApi.spec.ts` runs under `// @vitest-environment node`** (not the project default jsdom). MSW's `request.formData()` aborts inside `multipartFormDataParser` under jsdom + Node's bundled undici due to `File`/`FormData` brand mismatches. node env also needs `localStorage` polyfill in `tests/setup.ts` (handlers reference it for the `mockFailRate` knob).
 
-### Known API quirks (Univer 0.22 + @mertdeveci55/univer-import-export 0.2.1)
+### Known API quirks (Univer 0.22 + @zwight/luckyexcel 1.1.6)
 
 | What you'd expect | Actual |
 |---|---|
@@ -83,8 +83,9 @@ These were learned the hard way during build-out — don't undo them without a s
 | `LuckyExcel.transformUniverToExcel({snapshot, fileName}, success, error)` | Single params object: `{snapshot, fileName, getBuffer, success, error}`. `success`/`error` are inside the params, not positional. |
 | `LuckyExcel.transformExcelToUniver(file, success, error)` | Positional callbacks (asymmetric vs above). |
 | `getBuffer: true` (export) | Returns `ArrayBuffer` to `success` callback instead of triggering browser download. |
-| `npm i luckyexcel` | DON'T. The bare `luckyexcel@1.0.1` (2020) bundles old `@univerjs/core@0.6.10` and crashes the redi DI container. Use `@mertdeveci55/univer-import-export` (peerDep model, honors host Univer version). |
-| `xlsx` (SheetJS) | Indirect required by `@mertdeveci55/univer-import-export` but not declared. Already explicitly `npm install`-ed; keep it. |
+| `@zwight/luckyexcel` dependency tree | It declares `@univerjs/core@^0.6.0`, but the converter only exchanges plain workbook snapshots across this boundary. Do not import or register its nested Univer runtime in the app. |
+| Formula export | Version 1.1.6 reads formula text from `cell.si` instead of `cell.f`; `xlsxConverter` adapts formula cells with copy-on-write before export. |
+| Export buffer type | `transformUniverToExcel` may return an `ArrayBuffer` or a Node-style `Buffer`/`Uint8Array`; normalize the view before constructing the Blob. |
 | `FSheetHooks.onCellChange()` | Doesn't exist in 0.22. Use `api.Event.SheetValueChanged` (see Dirty detection above). |
 | `IAuthzIoService` | Univer's permission DI token. Optional `AuthzIoLocalService` mock is bundled in `@univerjs/core` for single-user use; not registered by default. Register only if a UI permission dialog throws "Cannot resolve IAuthzIoService". |
 

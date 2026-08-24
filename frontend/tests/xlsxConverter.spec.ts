@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { performance } from 'node:perf_hooks'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { xlsxConverter } from '@/utils/xlsxConverter'
 import type { ICellData, IWorkbookData, IWorksheetData } from '@univerjs/core'
 
 function loadFixtureBlob(name: string): Blob {
-  const buf = readFileSync(path.resolve(__dirname, 'fixtures', name))
+  const buf = readFileSync(path.resolve(__dirname, '../public/fixtures', name))
   // jsdom 环境下 Blob 接受 BufferSource
   return new Blob([buf], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -15,7 +16,7 @@ function loadFixtureBlob(name: string): Blob {
 type CellMatrix = Record<string, Record<string, ICellData | undefined>>
 
 /**
- * 空 cell 归一：mertdeveci55 round-trip 会把 `{v:null}` 变成 `{v:"",t:1,s:"style_X"}`，
+ * 空 cell 归一：LuckyExcel round-trip 可能把 `{v:null}` 变成 `{v:"",t:1,s:"style_X"}`，
  * 二者语义一致。比较前先归一掉。
  *
  * 判定为空：没有 formula (`f`)，且 v 为 null / undefined / ""。
@@ -23,6 +24,7 @@ type CellMatrix = Record<string, Record<string, ICellData | undefined>>
 function isEmptyCell(cell: ICellData | undefined): boolean {
   if (!cell) return true
   if (cell.f) return false
+  if (cell.p?.body?.dataStream?.replace(/\r?\n$/, '')) return false
   const v = cell.v
   return v === null || v === undefined || v === ''
 }
@@ -30,7 +32,18 @@ function isEmptyCell(cell: ICellData | undefined): boolean {
 /** 把单元格归一成可比较的稳定形式。空 cell → 'EMPTY'；非空 → 仅保留语义字段（v、f、t、s）。 */
 function normalizeCell(cell: ICellData | undefined): string {
   if (isEmptyCell(cell)) return 'EMPTY'
-  return JSON.stringify({ v: cell!.v, f: cell!.f, t: cell!.t, s: cell!.s })
+
+  const richText = cell!.p?.body?.dataStream?.replace(/\r?\n$/, '')
+  const style = typeof cell!.s === 'object' && cell!.s !== null
+    ? { ...cell!.s } as Record<string, unknown>
+    : cell!.s
+
+  if (typeof style === 'object' && style !== null) {
+    if (JSON.stringify(style.n) === JSON.stringify({ pattern: 'General' })) delete style.n
+    if (style.vt === 3) delete style.vt
+  }
+
+  return JSON.stringify({ v: cell!.v ?? richText, f: cell!.f, t: cell!.t, s: style })
 }
 
 function gatherCellKeys(matrix: CellMatrix | undefined): Set<string> {
@@ -90,5 +103,15 @@ describe('xlsxConverter round-trip', () => {
     const exported = await xlsxConverter.toXlsx(data, name)
     const reparsed = await xlsxConverter.toUniver(exported, name)
     expect(workbookEquivalent(data, reparsed)).toBe(true)
+  })
+
+  it('large-10k-rows.xlsx: 解析耗时保持在可接受范围', async () => {
+    const original = loadFixtureBlob('large-10k-rows.xlsx')
+    const startedAt = performance.now()
+
+    const data = await xlsxConverter.toUniver(original, 'large-10k-rows.xlsx')
+
+    expect(data.sheetOrder).toHaveLength(1)
+    expect(performance.now() - startedAt).toBeLessThan(5_000)
   })
 })
