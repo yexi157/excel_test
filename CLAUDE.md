@@ -83,6 +83,7 @@ These were learned the hard way during build-out — don't undo them without a s
 | `LuckyExcel.transformUniverToExcel({snapshot, fileName}, success, error)` | Single params object: `{snapshot, fileName, getBuffer, success, error}`. `success`/`error` are inside the params, not positional. |
 | `LuckyExcel.transformExcelToUniver(file, success, error)` | Positional callbacks (asymmetric vs above). |
 | `getBuffer: true` (export) | Returns `ArrayBuffer` to `success` callback instead of triggering browser download. |
+| Disabled underline/strikethrough | The exporter checks `!!style.ul` / `!!style.st`, so pasted styles like `{ s: 0 }` are treated as enabled. `xlsxConverter` removes only explicitly disabled decorations with copy-on-write before export. |
 | `npm i luckyexcel` | DON'T. The bare `luckyexcel@1.0.1` (2020) bundles old `@univerjs/core@0.6.10` and crashes the redi DI container. Use `@mertdeveci55/univer-import-export` (peerDep model, honors host Univer version). |
 | `xlsx` (SheetJS) | Indirect required by `@mertdeveci55/univer-import-export` but not declared. Already explicitly `npm install`-ed; keep it. |
 | `FSheetHooks.onCellChange()` | Doesn't exist in 0.22. Use `api.Event.SheetValueChanged` (see Dirty detection above). |

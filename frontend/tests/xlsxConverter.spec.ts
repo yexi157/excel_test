@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import ExcelJS from '@zwight/exceljs'
 import { xlsxConverter } from '@/utils/xlsxConverter'
-import type { ICellData, IWorkbookData, IWorksheetData } from '@univerjs/core'
+import type { ICellData, IStyleData, IWorkbookData, IWorksheetData } from '@univerjs/core'
 
 function loadFixtureBlob(name: string): Blob {
-  const buf = readFileSync(path.resolve(__dirname, 'fixtures', name))
+  const buf = readFileSync(path.resolve(__dirname, '../public/fixtures', name))
   // jsdom 环境下 Blob 接受 BufferSource
   return new Blob([buf], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -90,5 +91,26 @@ describe('xlsxConverter round-trip', () => {
     const exported = await xlsxConverter.toXlsx(data, name)
     const reparsed = await xlsxConverter.toUniver(exported, name)
     expect(workbookEquivalent(data, reparsed)).toBe(true)
+  })
+
+  it('粘贴单元格的关闭文本装饰在保存后不会变成下划线和删除线', async () => {
+    const data = await xlsxConverter.toUniver(loadFixtureBlob('simple-100x10.xlsx'), 'simple-100x10.xlsx')
+    const sheet = data.sheets[data.sheetOrder[0]] as IWorksheetData
+    const disabledCell = sheet.cellData?.[0]?.[0] as ICellData
+    const enabledCell = sheet.cellData?.[1]?.[0] as ICellData
+
+    data.styles.pastedDisabled = { bl: 0, it: 0, ul: { s: 0 }, st: { s: 0 } }
+    disabledCell.s = 'pastedDisabled'
+    enabledCell.s = { ...(enabledCell.s as IStyleData), bl: 0, it: 0, ul: { s: 1 }, st: { s: 1 } }
+
+    const exported = await xlsxConverter.toXlsx(data, 'pasted-row.xlsx')
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(await exported.arrayBuffer())
+    const exportedSheet = workbook.worksheets[0]
+
+    expect(exportedSheet.getCell('A1').font?.underline).toBeFalsy()
+    expect(exportedSheet.getCell('A1').font?.strike).toBeFalsy()
+    expect(exportedSheet.getCell('A2').font?.underline).toBe(true)
+    expect(exportedSheet.getCell('A2').font?.strike).toBe(true)
   })
 })
